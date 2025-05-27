@@ -47,3 +47,10 @@ This add-on is a tool to aid users working with **Fate/Grand Order Arcade** mode
 
 **Contributing**
 If you'd like to contribute to the project, feel free to submit issues or pull requests. All contributions are welcome, but please ensure that they adhere to the legal and ethical guidelines mentioned above.
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Part of the automation code was generated with the assistance of IA (OpenAI ChatGPT).
+Parte del código de automatización fue generado con asistencia de IA (ChatGPT de OpenAI).
+
+My labour was more based on the design of the script (what it should include, the way it shows for the user and the UX), mainly cause I don't know how to programm in Python.
