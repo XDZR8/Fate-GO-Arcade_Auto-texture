@@ -50,6 +50,9 @@ If you'd like to contribute to the project, feel free to submit issues or pull r
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Design made by XDZR8.
+Diseño del add-on por XDZR8.
+
 Part of the automation code was generated with the assistance of IA (OpenAI ChatGPT).
 Parte del código de automatización fue generado con asistencia de IA (ChatGPT de OpenAI).
 
