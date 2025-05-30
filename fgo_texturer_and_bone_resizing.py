@@ -1,10 +1,10 @@
 
 bl_info = {
-    "name": "FGO Arcade Toolkit (Texturizado + Huesos)",
+    "name": "FGO Arcade Toolkit (Full UI + Context Menu + Safe Check)",
     "blender": (3, 0, 0),
     "category": "Import-Export",
-    "author": "XDZR8 (assited by ChatGPT in code matters)",
-    "description": "Autoasigna texturas por stage y redimensiona huesos de modelos FGO Arcade.",
+    "author": "TuNombre (con ayuda de ChatGPT)",
+    "description": "Toolkit completo para FGO Arcade: auto texturas, redim. huesos, menú contextual y validación de carpeta.",
 }
 
 import bpy
@@ -19,7 +19,6 @@ def assign_texture(mat, tex_path, input_name, is_normal=False, use_alpha=False):
     bsdf = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
     if not bsdf:
         return
-
     tex_node = nodes.new('ShaderNodeTexImage')
     tex_node.image = bpy.data.images.load(tex_path)
     bsdf.inputs["Metallic"].default_value = 0
@@ -36,86 +35,20 @@ def assign_texture(mat, tex_path, input_name, is_normal=False, use_alpha=False):
     else:
         links.new(tex_node.outputs["Color"], bsdf.inputs[input_name])
 
-class FGOTexturePreferences(bpy.types.AddonPreferences):
-    bl_idname = __name__
-
-    texture_path: bpy.props.StringProperty(
-        name="Carpeta de personajes",
-        subtype='DIR_PATH',
-        default="",
-    )
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, "texture_path")
-
-class FGOToolsPanel(bpy.types.Panel):
-    bl_label = "🎨 FGO Arcade Toolkit"
-    bl_idname = "VIEW3D_PT_fgo_arcade_toolkit"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = 'FGO Tools'
-
-    def draw(self, context):
-        prefs = bpy.context.preferences.addons[__name__].preferences
-        layout = self.layout
-        scn = context.scene
-
-        if not os.path.exists(prefs.texture_path):
-            layout.label(text="⚠ Define la ruta en Preferencias del Addon", icon="ERROR")
-            return
-
-        layout.label(text="🔍 Buscar personaje:")
-        layout.prop(scn, "fgo_character_name", text="Nombre")
-        layout.operator("fgo.search_character", text="🔎 Buscar carpeta")
-
-        if scn.get("fgo_folder_choices"):
-            layout.prop(scn, "fgo_character_folder", text="Carpeta encontrada")
-
-        layout.label(text="🎭 Stage / Ascensión:")
-        layout.prop(scn, "fgo_stage", expand=True)
-        layout.prop(scn, "fgo_invert_uvs", text="Invertir UV de faceback")
-        layout.operator("fgo.apply_textures", text="🎨 Aplicar Texturas")
-
-        layout.separator()
-        layout.label(text="🦴 Ajuste de Huesos")
-        layout.prop(scn, "fgo_bone_scale_factor", text="Escala")
-        layout.operator("fgo.scale_bones", text="🔧 Redimensionar Huesos")
-
-
-class FGO_OT_SearchCharacter(bpy.types.Operator):
-    bl_idname = "fgo.search_character"
-    bl_label = "Buscar personaje"
-
-    def execute(self, context):
-        prefs = bpy.context.preferences.addons[__name__].preferences
-        folder = prefs.texture_path
-        keyword = context.scene.fgo_character_name.lower()
-        if not os.path.isdir(folder):
-            self.report({'ERROR'}, "Ruta no válida.")
-            return {'CANCELLED'}
-        matches = [f for f in os.listdir(folder) if keyword in f.lower()]
-        context.scene["fgo_folder_choices"] = matches
-        if matches:
-            context.scene.fgo_character_folder = matches[0]
-        return {'FINISHED'}
-
-
 class FGO_OT_ApplyTextures(bpy.types.Operator):
     bl_idname = "fgo.apply_textures"
-    bl_label = "Aplicar texturas al modelo"
+    bl_label = "Apply FGO Textures"
 
     def execute(self, context):
         prefs = bpy.context.preferences.addons[__name__].preferences
-        folder = prefs.texture_path
-        char_folder = context.scene.fgo_character_folder
-        stage = context.scene.fgo_stage
+        texture_dir = prefs.texture_path
 
-        texture_dir = os.path.join(folder, char_folder)
-        if not os.path.exists(texture_dir):
-            self.report({'ERROR'}, "No se encontró la carpeta de texturas.")
+        if not os.path.isdir(texture_dir):
+            self.report({'ERROR'}, f"Selected path is not a valid folder:\n{texture_dir}")
             return {'CANCELLED'}
 
+        stage = context.scene.fgo_stage
+        char_folder = os.path.basename(texture_dir)
         all_textures = {}
         for file in os.listdir(texture_dir):
             name, ext = os.path.splitext(file)
@@ -141,64 +74,83 @@ class FGO_OT_ApplyTextures(bpy.types.Operator):
                     assign_texture(mat, all_textures[base_match + "_s"], "Roughness")
                 if base_match + "_a" in all_textures:
                     assign_texture(mat, all_textures[base_match + "_a"], "Alpha", use_alpha=True)
-                self.report({'INFO'}, f"Textura aplicada: {base_match}")
-            else:
-                print(f"[WARN] No se encontró textura para {mat.name}")
-
         return {'FINISHED'}
-
 
 class FGO_OT_ScaleBones(bpy.types.Operator):
     bl_idname = "fgo.scale_bones"
-    bl_label = "Redimensionar Huesos"
-    bl_description = "Escala todos los huesos del armature seleccionado"
+    bl_label = "Resize Bones"
 
     def execute(self, context):
         obj = context.object
         if not obj or obj.type != 'ARMATURE':
-            self.report({'ERROR'}, "Selecciona un objeto de tipo Armature.")
+            self.report({'ERROR'}, "Select an Armature object.")
             return {'CANCELLED'}
 
         scale_factor = context.scene.fgo_bone_scale_factor
-
         bpy.ops.object.mode_set(mode='EDIT')
         for bone in obj.data.edit_bones:
             bone.length *= scale_factor
         bpy.ops.object.mode_set(mode='OBJECT')
-
-        self.report({'INFO'}, f"Huesos redimensionados por un factor de {scale_factor:.2f}")
+        self.report({'INFO'}, f"Bones resized by {scale_factor:.2f}")
         return {'FINISHED'}
 
+class FGOAddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+    texture_path: bpy.props.StringProperty(name="Character Folder Path", subtype='DIR_PATH', default="")
+    def draw(self, context):
+        self.layout.prop(self, "texture_path")
+
+class FGO_PT_MainPanel(bpy.types.Panel):
+    bl_label = "FGO Arcade Toolkit"
+    bl_idname = "VIEW3D_PT_fgo_arcade_main"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'FGO Tools'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(context.scene, "fgo_stage")
+        layout.prop(context.scene, "fgo_bone_scale_factor")
+        layout.operator("fgo.apply_textures")
+        layout.operator("fgo.scale_bones")
+
+class FGO_MT_ContextMenu(bpy.types.Menu):
+    bl_label = "FGO Tools"
+    bl_idname = "FGO_MT_context_menu"
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        if obj and obj.type == 'MESH':
+            layout.operator("fgo.apply_textures", text="🎨 Apply FGO Textures")
+        if obj and obj.type == 'ARMATURE':
+            layout.prop(context.scene, "fgo_bone_scale_factor")
+            layout.operator("fgo.scale_bones", text="🦴 Resize Bones")
+
+def draw_context_menu(self, context):
+    self.layout.separator()
+    self.layout.menu("FGO_MT_context_menu")
 
 def register():
-    bpy.utils.register_class(FGOTexturePreferences)
-    bpy.utils.register_class(FGOToolsPanel)
-    bpy.utils.register_class(FGO_OT_SearchCharacter)
+    bpy.utils.register_class(FGOAddonPreferences)
     bpy.utils.register_class(FGO_OT_ApplyTextures)
     bpy.utils.register_class(FGO_OT_ScaleBones)
-    bpy.types.Scene.fgo_character_name = bpy.props.StringProperty(name="Nombre del personaje")
-    bpy.types.Scene.fgo_character_folder = bpy.props.EnumProperty(name="Carpeta", items=lambda self, context: [
-        (c, c, "") for c in context.scene.get("fgo_folder_choices", [])
-    ])
+    bpy.utils.register_class(FGO_PT_MainPanel)
+    bpy.utils.register_class(FGO_MT_ContextMenu)
     bpy.types.Scene.fgo_stage = bpy.props.EnumProperty(
-        name="Ascensión", items=[('s01', 'Stage 1', ''), ('s02', 'Stage 2', ''), ('s03', 'Stage 3', '')], default='s03')
-    bpy.types.Scene.fgo_invert_uvs = bpy.props.BoolProperty(name="Invertir UV de faceback", default=False)
+        name="Stage", items=[('s01', 'Stage 1', ''), ('s02', 'Stage 2', ''), ('s03', 'Stage 3', '')], default='s03')
     bpy.types.Scene.fgo_bone_scale_factor = bpy.props.FloatProperty(
-        name="Bone Scale", default=0.1, min=0.01, max=10.0, step=0.1)
-
+        name="Bone Scale", default=0.1, min=0.01, max=10.0)
+    bpy.types.VIEW3D_MT_object_context_menu.append(draw_context_menu)
 
 def unregister():
-    bpy.utils.unregister_class(FGOTexturePreferences)
-    bpy.utils.unregister_class(FGOToolsPanel)
-    bpy.utils.unregister_class(FGO_OT_SearchCharacter)
+    bpy.utils.unregister_class(FGOAddonPreferences)
     bpy.utils.unregister_class(FGO_OT_ApplyTextures)
     bpy.utils.unregister_class(FGO_OT_ScaleBones)
-    del bpy.types.Scene.fgo_character_name
-    del bpy.types.Scene.fgo_character_folder
+    bpy.utils.unregister_class(FGO_PT_MainPanel)
+    bpy.utils.unregister_class(FGO_MT_ContextMenu)
     del bpy.types.Scene.fgo_stage
-    del bpy.types.Scene.fgo_invert_uvs
     del bpy.types.Scene.fgo_bone_scale_factor
-
+    bpy.types.VIEW3D_MT_object_context_menu.remove(draw_context_menu)
 
 if __name__ == "__main__":
     register()
