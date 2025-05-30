@@ -3,7 +3,7 @@ bl_info = {
     "name": "FGO Arcade Toolkit (Texturizado + Huesos)",
     "blender": (3, 0, 0),
     "category": "Import-Export",
-    "author": "OpenAI Assistant",
+    "author": "XDZR8 (assited by ChatGPT in code matters)",
     "description": "Autoasigna texturas por stage y redimensiona huesos de modelos FGO Arcade.",
 }
 
