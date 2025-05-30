@@ -3,7 +3,7 @@ bl_info = {
     "name": "FGO Arcade Toolkit (Full UI + Context Menu + Safe Check)",
     "blender": (3, 0, 0),
     "category": "Import-Export",
-    "author": "TuNombre (con ayuda de ChatGPT)",
+    "author": XDZR8 (con ayuda de ChatGPT)",
     "description": "Toolkit completo para FGO Arcade: auto texturas, redim. huesos, menú contextual y validación de carpeta.",
 }
 
